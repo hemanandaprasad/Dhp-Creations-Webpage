@@ -7,12 +7,20 @@ app = Flask(__name__)
 CORS(app)
 
 # Database URL from Render environment variable
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable not set!")
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://dhp_creations_webpage_user:zpvA6GOp6ZZwq8z9jP7H124NhxpFfYnz@dpg-d6te41f5r7bs73abruv0-a.oregon-postgres.render.com/dhp_creations_webpage")
 
 def get_db():
-    return psycopg2.connect(DATABASE_URL)
+    try:
+        conn = psycopg2.connect(DATABASE_URL, connect_timeout=5)
+        return conn
+    except Exception as e:
+        print("Database connection failed:", e)
+        return None
+
+# Health check route
+@app.route("/ping")
+def ping():
+    return "Backend is live!"
 
 # Redirect homepage to Netlify frontend
 @app.route("/")
@@ -24,6 +32,9 @@ def home():
 def submit():
     data = request.json
     conn = get_db()
+    if not conn:
+        return jsonify({"error": "Database connection failed"}), 500
+    
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO applications 
@@ -68,6 +79,9 @@ def submit():
 @app.route('/data')
 def data():
     conn = get_db()
+    if not conn:
+        return "<p style='color:red;text-align:center;'>Database connection failed!</p>", 500
+    
     cur = conn.cursor()
     cur.execute("SELECT name, age, location, role, skills, email, phone, portfolio FROM applications")
     rows = cur.fetchall()
