@@ -8,6 +8,8 @@ CORS(app)
 
 # Database URL from Render environment variable
 DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable not set!")
 
 def get_db():
     return psycopg2.connect(DATABASE_URL)
@@ -28,8 +30,8 @@ def submit():
         (name, age, location, role, skills, email, phone, portfolio)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
-        data['name'], data['age'], data['location'], data['role'],
-        data['skills'], data['email'], data['phone'], data['portfolio']
+        data.get('name'), data.get('age'), data.get('location'), data.get('role'),
+        data.get('skills'), data.get('email'), data.get('phone'), data.get('portfolio')
     ))
     conn.commit()
     cur.close()
@@ -54,7 +56,7 @@ def submit():
         </style>
     </head>
     <body>
-        <h1>Thank You, {data['name']}!</h1>
+        <h1>Thank You, {data.get('name')}!</h1>
         <p>Your application has been submitted successfully.</p>
         <a href="https://dhpcreations.netlify.app/">← Back to Home</a>
     </body>
@@ -112,7 +114,7 @@ def data():
                 <td>{{ r[4] }}</td>
                 <td>{{ r[5] }}</td>
                 <td>{{ r[6] }}</td>
-                <td><a href="{{ r[7] }}" target="_blank">Link</a></td>
+                <td>{% if r[7] %}<a href="{{ r[7] }}" target="_blank">Link</a>{% else %}-{% endif %}</td>
             </tr>
             {% endfor %}
         </table>
@@ -127,4 +129,4 @@ def data():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
