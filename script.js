@@ -1,7 +1,6 @@
-const form = document.getElementById('form');
-const message = document.getElementById('message');
+const form = document.getElementById("form");
 
-form.addEventListener('submit', async (e) => {
+form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const formData = {
@@ -16,22 +15,17 @@ form.addEventListener('submit', async (e) => {
     };
 
     try {
-        const response = await fetch('https://dhp-creations-webpage.onrender.com/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("https://dhp-creations-webpage.onrender.com/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(formData)
         });
 
-        const result = await response.json();
-
-        if (response.ok) {
-            message.textContent = "Application submitted successfully!";
-            form.reset();
-        } else {
-            message.textContent = "Error: " + result.message;
-        }
+        const data = await response.json();
+        alert(data.message);
+        form.reset();
     } catch (err) {
-        message.textContent = "Server error. Try again later.";
         console.error(err);
+        alert("Failed to submit. Please try again.");
     }
 });
