@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import psycopg2
 import os
@@ -6,87 +6,123 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# DATABASE_URL comes from Render environment variable for production
-# Fallback is your full Postgres URL
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://dhp_creations_webpage_user:zpvA6GOp6ZZwq8z9jP7H124NhxpFfYnz@dpg-d6te41f5r7bs73abruv0-a.oregon-postgres.render.com/dhp_creations_webpage"
-)
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
     return psycopg2.connect(DATABASE_URL)
 
-# Root route with simple HTML linking to /data
-@app.route('/')
+# Simple homepage
+@app.route("/")
 def home():
-    return """
-    <html>
-        <head>
-            <title>Flask App on Render</title>
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-                a.button { 
-                    display: inline-block; padding: 10px 20px; background-color: #4CAF50; 
-                    color: white; text-decoration: none; border-radius: 5px; font-weight: bold; 
-                }
-                a.button:hover { background-color: #45a049; }
-            </style>
-        </head>
-        <body>
-            <h1>Welcome! Your Flask app is running on Render.</h1>
-            <p>Click below to see submitted data:</p>
-            <a class="button" href="/data">View Data</a>
-        </body>
-    </html>
-    """
+    return "<h2>DHP Creations Backend Running!</h2><p>Use the frontend form to submit data.</p>"
 
-# Submit endpoint
+# Submit route with confirmation page
 @app.route('/submit', methods=['POST'])
 def submit():
     data = request.json
     conn = get_db()
     cur = conn.cursor()
-
     cur.execute("""
         INSERT INTO applications 
         (name, age, location, role, skills, email, phone, portfolio)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
-        data.get('name'), data.get('age'), data.get('location'), data.get('role'),
-        data.get('skills'), data.get('email'), data.get('phone'), data.get('portfolio')
+        data['name'], data['age'], data['location'], data['role'],
+        data['skills'], data['email'], data['phone'], data['portfolio']
     ))
-
     conn.commit()
     cur.close()
     conn.close()
+    
+    # Detect if request came from browser (text/html) or API (application/json)
+    if request.headers.get('Content-Type') == 'application/json':
+        return jsonify({"message": "Application submitted successfully!"})
+    else:
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Submission Successful</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align:center; padding:50px; background:#f5f5f5; }}
+                h1 {{ color: #2575fc; }}
+                p {{ font-size: 1.2rem; }}
+                a {{ display:inline-block; margin-top:30px; padding:12px 20px; background:#2575fc; color:white; text-decoration:none; border-radius:8px; }}
+                a:hover {{ background:#6a11cb; }}
+            </style>
+        </head>
+        <body>
+            <h1>Thank You, {data['name']}!</h1>
+            <p>Your application has been submitted successfully.</p>
+            <a href="https://your-netlify-frontend-url.netlify.app">← Back to Home</a>
+        </body>
+        </html>
+        """
+        return html
 
-    return jsonify({"message": "Saved"})
-
-# Data endpoint
+# Pretty data page with Back button
 @app.route('/data')
 def data():
     conn = get_db()
     cur = conn.cursor()
-
-    cur.execute("SELECT name, age, location, role, skills FROM applications")
+    cur.execute("SELECT name, age, location, role, skills, email, phone, portfolio FROM applications")
     rows = cur.fetchall()
-
     cur.close()
     conn.close()
 
-    result = []
-    for r in rows:
-        result.append({
-            "name": r[0],
-            "age": r[1],
-            "location": r[2],
-            "role": r[3],
-            "skills": r[4]
-        })
-
-    return jsonify(result)
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>DHP Creations - Submissions</title>
+        <style>
+            body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+            h1 { text-align: center; color: #2575fc; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+            th { background: #2575fc; color: white; }
+            tr:nth-child(even) { background: #e6f0ff; }
+            a { color: #2575fc; text-decoration: none; }
+            .back-button { display:block; width:200px; margin: 30px auto; text-align:center; padding:12px; background:#2575fc; color:white; text-decoration:none; border-radius:8px; font-weight:bold; }
+            .back-button:hover { background:#6a11cb; }
+        </style>
+    </head>
+    <body>
+        <h1>DHP Creations - Applications</h1>
+        {% if rows %}
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Location</th>
+                <th>Role</th>
+                <th>Skills</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Portfolio</th>
+            </tr>
+            {% for r in rows %}
+            <tr>
+                <td>{{ r[0] }}</td>
+                <td>{{ r[1] }}</td>
+                <td>{{ r[2] }}</td>
+                <td>{{ r[3] }}</td>
+                <td>{{ r[4] }}</td>
+                <td>{{ r[5] }}</td>
+                <td>{{ r[6] }}</td>
+                <td><a href="{{ r[7] }}" target="_blank">Link</a></td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p style="text-align:center; color:gray; font-size:1.2rem;">No submissions yet.</p>
+        {% endif %}
+        <a href="https://your-netlify-frontend-url.netlify.app" class="back-button">← Back to Home</a>
+    </body>
+    </html>
+    """
+    return render_template_string(html, rows=rows)
 
 if __name__ == "__main__":
-    # Use Render's port if available, fallback to 5000 locally
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port)

@@ -1,13 +1,10 @@
-const form = document.getElementById("form");
-const dataDiv = document.getElementById("data");
-const msg = document.getElementById("message");
+const form = document.getElementById('form');
+const message = document.getElementById('message');
 
-const API = "http://127.0.0.1:5000";
-
-form.addEventListener("submit", async (e) => {
+form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const data = {
+    const formData = {
         name: form.name.value,
         age: form.age.value,
         location: form.location.value,
@@ -18,16 +15,23 @@ form.addEventListener("submit", async (e) => {
         portfolio: form.portfolio.value
     };
 
-    const res = await fetch(API + "/submit", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
-    });
+    try {
+        const response = await fetch('https://dhp-creations-webpage.onrender.com/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
 
-    const result = await res.json();
+        const result = await response.json();
 
-    msg.innerText = "✅ Application Submitted Successfully!";
-    form.reset();
-
-    loadData();
+        if (response.ok) {
+            message.textContent = "Application submitted successfully!";
+            form.reset();
+        } else {
+            message.textContent = "Error: " + result.message;
+        }
+    } catch (err) {
+        message.textContent = "Server error. Try again later.";
+        console.error(err);
+    }
 });
