@@ -6,6 +6,7 @@ import os
 app = Flask(__name__)
 CORS(app)
 
+# Database URL from Render environment variable
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable not set!")
@@ -13,6 +14,29 @@ if not DATABASE_URL:
 def get_db():
     return psycopg2.connect(DATABASE_URL)
 
+# Homepage showing backend status
+@app.route("/")
+def home():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>DHP Creations Backend</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align:center; padding:50px; background:#f5f5f5; }
+            h1 { color: #2575fc; }
+            p { font-size: 1.2rem; }
+        </style>
+    </head>
+    <body>
+        <h1>DHP Creations Backend Running!</h1>
+        <p>Use the frontend form on Netlify to submit applications.</p>
+        <p>Click <a href="/data">here</a> to view submissions (currently empty).</p>
+    </body>
+    </html>
+    """
+
+# Submit route with confirmation
 @app.route('/submit', methods=['POST'])
 def submit():
     data = request.json
@@ -29,8 +53,10 @@ def submit():
     conn.commit()
     cur.close()
     conn.close()
+
     return jsonify({"message": "Application submitted successfully!"})
 
+# View data page
 @app.route('/data')
 def data():
     conn = get_db()
@@ -46,13 +72,12 @@ def data():
     <head>
         <title>DHP Creations - Applications</title>
         <style>
-            body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-            h1 { text-align: center; color: #2575fc; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; text-align:center; }
+            h1 { color: #2575fc; }
+            table { width: 90%; margin: 20px auto; border-collapse: collapse; }
             th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
             th { background: #2575fc; color: white; }
             tr:nth-child(even) { background: #e6f0ff; }
-            a { color: #2575fc; text-decoration: none; }
             .back-button { display:block; width:200px; margin: 30px auto; text-align:center; padding:12px; background:#2575fc; color:white; text-decoration:none; border-radius:8px; font-weight:bold; }
             .back-button:hover { background:#6a11cb; }
         </style>
@@ -62,14 +87,8 @@ def data():
         {% if rows %}
         <table>
             <tr>
-                <th>Name</th>
-                <th>Age</th>
-                <th>Location</th>
-                <th>Role</th>
-                <th>Skills</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Portfolio</th>
+                <th>Name</th><th>Age</th><th>Location</th><th>Role</th>
+                <th>Skills</th><th>Email</th><th>Phone</th><th>Portfolio</th>
             </tr>
             {% for r in rows %}
             <tr>
@@ -85,13 +104,24 @@ def data():
             {% endfor %}
         </table>
         {% else %}
-        <p style="text-align:center; color:gray; font-size:1.2rem;">No submissions yet.</p>
+        <p style="color:gray; font-size:1.2rem;">No submissions yet.</p>
         {% endif %}
-        <a href="https://dhpcreations.netlify.app/" class="back-button">← Back to Home</a>
+        <a href="/" class="back-button">← Back to Backend Home</a>
     </body>
     </html>
     """
     return render_template_string(html, rows=rows)
+
+# Route to clear all submissions
+@app.route('/clear', methods=['POST'])
+def clear():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM applications")
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"message": "All entries cleared!"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
