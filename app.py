@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, redirect
 from flask_cors import CORS
 import psycopg2
 import os
@@ -6,15 +6,16 @@ import os
 app = Flask(__name__)
 CORS(app)
 
+# Database URL from Render environment variable
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
     return psycopg2.connect(DATABASE_URL)
 
-# Simple homepage
+# Redirect homepage to Netlify frontend
 @app.route("/")
 def home():
-    return "<h2>DHP Creations Backend Running!</h2><p>Use the frontend form to submit data.</p>"
+    return redirect("https://dhpcreations.netlify.app/")
 
 # Submit route with confirmation page
 @app.route('/submit', methods=['POST'])
@@ -34,33 +35,34 @@ def submit():
     cur.close()
     conn.close()
     
-    # Detect if request came from browser (text/html) or API (application/json)
+    # Return JSON if called via API
     if request.headers.get('Content-Type') == 'application/json':
         return jsonify({"message": "Application submitted successfully!"})
-    else:
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Submission Successful</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; text-align:center; padding:50px; background:#f5f5f5; }}
-                h1 {{ color: #2575fc; }}
-                p {{ font-size: 1.2rem; }}
-                a {{ display:inline-block; margin-top:30px; padding:12px 20px; background:#2575fc; color:white; text-decoration:none; border-radius:8px; }}
-                a:hover {{ background:#6a11cb; }}
-            </style>
-        </head>
-        <body>
-            <h1>Thank You, {data['name']}!</h1>
-            <p>Your application has been submitted successfully.</p>
-            <a href="https://your-netlify-frontend-url.netlify.app">← Back to Home</a>
-        </body>
-        </html>
-        """
-        return html
+    
+    # Return HTML confirmation page if opened in browser
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Submission Successful</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; text-align:center; padding:50px; background:#f5f5f5; }}
+            h1 {{ color: #2575fc; }}
+            p {{ font-size: 1.2rem; }}
+            a {{ display:inline-block; margin-top:30px; padding:12px 20px; background:#2575fc; color:white; text-decoration:none; border-radius:8px; }}
+            a:hover {{ background:#6a11cb; }}
+        </style>
+    </head>
+    <body>
+        <h1>Thank You, {data['name']}!</h1>
+        <p>Your application has been submitted successfully.</p>
+        <a href="https://dhpcreations.netlify.app/">← Back to Home</a>
+    </body>
+    </html>
+    """
+    return html
 
-# Pretty data page with Back button
+# Data page with pretty table and Back button
 @app.route('/data')
 def data():
     conn = get_db()
@@ -74,7 +76,7 @@ def data():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>DHP Creations - Submissions</title>
+        <title>DHP Creations - Applications</title>
         <style>
             body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
             h1 { text-align: center; color: #2575fc; }
@@ -117,7 +119,7 @@ def data():
         {% else %}
         <p style="text-align:center; color:gray; font-size:1.2rem;">No submissions yet.</p>
         {% endif %}
-        <a href="https://your-netlify-frontend-url.netlify.app" class="back-button">← Back to Home</a>
+        <a href="https://dhpcreations.netlify.app/" class="back-button">← Back to Home</a>
     </body>
     </html>
     """
